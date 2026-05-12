@@ -2,6 +2,9 @@
 
 A full-stack web application for managing soccer referee scheduling. Referees submit their availability for games, and admins assign referees based on who's available.
 
+## Author
+Nicholas Tait 
+
 ## Tech Stack
 - **Backend:** Spring Boot (Java)
 - **Frontend:** React + TypeScript
@@ -21,3 +24,5 @@ TODO
 ### Database
 TODO
 
+## License
+MIT License - see LICENSE file for details
