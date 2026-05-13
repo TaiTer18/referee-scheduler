@@ -56,9 +56,21 @@ CREATE TABLE game_assignments (
     FOREIGN KEY (assigned_by_admin_id) REFERENCES users(id)
 );
 
+-- Refresh Tokens table
+CREATE TABLE refresh_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    token_hash VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    revoked_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Create indexes for faster queries
 CREATE INDEX idx_games_assigned_referee ON games(assigned_referee_id);
 CREATE INDEX idx_referee_availability_referee ON referee_availability(referee_id);
 CREATE INDEX idx_referee_availability_game ON referee_availability(game_id);
 CREATE INDEX idx_game_assignments_game ON game_assignments(game_id);
 CREATE INDEX idx_game_assignments_referee ON game_assignments(referee_id);
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
