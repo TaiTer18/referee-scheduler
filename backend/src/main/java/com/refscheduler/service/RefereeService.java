@@ -8,7 +8,6 @@ import com.refscheduler.dto.referee.GameAvailabilityResponse;
 import com.refscheduler.exception.BadRequestException;
 import com.refscheduler.exception.NotFoundException;
 import com.refscheduler.model.Game;
-import com.refscheduler.model.GameAssignment;
 import com.refscheduler.model.RefereeAvailability;
 import com.refscheduler.model.User;
 import com.refscheduler.repository.GameAssignmentRepository;
