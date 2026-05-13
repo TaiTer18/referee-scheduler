@@ -1,24 +1,22 @@
-## Description
-Brief description of what this PR does
+## Summary
+Brief description of what this PR adds or changes.
 
-## Type of Change
-- [ ] New feature
-- [ ] Bug fix
-- [ ] Refactoring
-- [ ] Documentation update
+## What’s Included
+- Added ...
+- Updated ...
+- Tested ...
+
+## Why
+Short note on the purpose of the change.
 
 ## Testing
-- [ ] Backend tests pass (`mvn test`)
-- [ ] Frontend tests pass (`npm run test`)
+- [ ] `mvn test`
+- [ ] `npm run test`
 - [ ] Manually tested
 
-## Related Issues
-Closes #(issue number)
-
-## Screenshots (if UI changes)
-<!-- Add screenshots here -->
-
-## Checklist
-- [ ] Code is clean and well-organized
-- [ ] Commit messages are clear
-- [ ] No debug code or console.logs left
+## Notes
+Anything important to remember later.
+Examples:
+- follow-up work
+- known limitations
+- design decisions
