@@ -9,6 +9,8 @@ public record RegisterRequest(
     @NotBlank String password,
     @NotBlank String fullName,
     String phoneNumber,
-    @NotBlank @Pattern(regexp = "REFEREE|ADMIN", message = "Role must be REFEREE or ADMIN") String role
+    @NotBlank @Pattern(regexp = "REFEREE|ADMIN", message = "Role must be REFEREE or ADMIN") String role,
+    String organizationName,
+    String joinCode
 ) {
 }

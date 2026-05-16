@@ -1,15 +1,19 @@
 package com.refscheduler.controller;
 
 import com.refscheduler.dto.auth.AuthResponse;
+import com.refscheduler.dto.auth.JoinOrganizationRequest;
 import com.refscheduler.dto.auth.LoginRequest;
 import com.refscheduler.dto.auth.RefreshResponse;
 import com.refscheduler.dto.auth.RefreshTokenRequest;
 import com.refscheduler.dto.auth.RegisterRequest;
 import com.refscheduler.dto.common.ApiMessageResponse;
+import com.refscheduler.dto.organization.OrganizationMembershipResponse;
+import com.refscheduler.security.UserPrincipal;
 import com.refscheduler.dto.user.UserResponse;
 import com.refscheduler.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -45,6 +49,14 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<RefreshResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         return ResponseEntity.ok(authService.refresh(request));
+    }
+
+    @PostMapping("/join-organization")
+    public ResponseEntity<OrganizationMembershipResponse> joinOrganization(
+        @AuthenticationPrincipal UserPrincipal userPrincipal,
+        @Valid @RequestBody JoinOrganizationRequest request
+    ) {
+        return ResponseEntity.ok(authService.joinOrganization(userPrincipal.getId(), request));
     }
 
     @GetMapping("/me")

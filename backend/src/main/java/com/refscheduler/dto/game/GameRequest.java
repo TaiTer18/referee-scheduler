@@ -13,6 +13,7 @@ public record GameRequest(
     @NotBlank String homeTeam,
     @NotBlank String awayTeam,
     String ageGroup,
+    Integer organizationId,
     String status,
     String notes
 ) {

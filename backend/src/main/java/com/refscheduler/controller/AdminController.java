@@ -35,29 +35,42 @@ public class AdminController {
     }
 
     @GetMapping("/games")
-    public ResponseEntity<List<GameResponse>> getGames() {
-        return ResponseEntity.ok(adminService.getAllGames());
+    public ResponseEntity<List<GameResponse>> getGames(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(adminService.getAllGames(userPrincipal.getId()));
     }
 
     @PostMapping("/games")
-    public ResponseEntity<GameResponse> createGame(@Valid @RequestBody GameRequest request) {
-        return ResponseEntity.ok(adminService.createGame(request));
+    public ResponseEntity<GameResponse> createGame(
+        @AuthenticationPrincipal UserPrincipal userPrincipal,
+        @Valid @RequestBody GameRequest request
+    ) {
+        return ResponseEntity.ok(adminService.createGame(userPrincipal.getId(), request));
     }
 
     @PutMapping("/games/{id}")
-    public ResponseEntity<GameResponse> updateGame(@PathVariable Integer id, @Valid @RequestBody GameRequest request) {
-        return ResponseEntity.ok(adminService.updateGame(id, request));
+    public ResponseEntity<GameResponse> updateGame(
+        @AuthenticationPrincipal UserPrincipal userPrincipal,
+        @PathVariable Integer id,
+        @Valid @RequestBody GameRequest request
+    ) {
+        return ResponseEntity.ok(adminService.updateGame(userPrincipal.getId(), id, request));
     }
 
     @DeleteMapping("/games/{id}")
-    public ResponseEntity<ApiMessageResponse> deleteGame(@PathVariable Integer id) {
-        adminService.deleteGame(id);
+    public ResponseEntity<ApiMessageResponse> deleteGame(
+        @AuthenticationPrincipal UserPrincipal userPrincipal,
+        @PathVariable Integer id
+    ) {
+        adminService.deleteGame(userPrincipal.getId(), id);
         return ResponseEntity.ok(new ApiMessageResponse("Game deleted successfully."));
     }
 
     @GetMapping("/games/{id}/referees")
-    public ResponseEntity<List<GameRefereeAvailabilityResponse>> getGameReferees(@PathVariable Integer id) {
-        return ResponseEntity.ok(adminService.getRefereesForGame(id));
+    public ResponseEntity<List<GameRefereeAvailabilityResponse>> getGameReferees(
+        @AuthenticationPrincipal UserPrincipal userPrincipal,
+        @PathVariable Integer id
+    ) {
+        return ResponseEntity.ok(adminService.getRefereesForGame(userPrincipal.getId(), id));
     }
 
     @PostMapping("/assignments")
@@ -69,18 +82,24 @@ public class AdminController {
     }
 
     @DeleteMapping("/assignments/{id}")
-    public ResponseEntity<ApiMessageResponse> unassignReferee(@PathVariable Integer id) {
-        adminService.unassignReferee(id);
+    public ResponseEntity<ApiMessageResponse> unassignReferee(
+        @AuthenticationPrincipal UserPrincipal userPrincipal,
+        @PathVariable Integer id
+    ) {
+        adminService.unassignReferee(userPrincipal.getId(), id);
         return ResponseEntity.ok(new ApiMessageResponse("Referee unassigned successfully."));
     }
 
     @GetMapping("/referees")
-    public ResponseEntity<List<UserResponse>> getReferees() {
-        return ResponseEntity.ok(adminService.getAllReferees());
+    public ResponseEntity<List<UserResponse>> getReferees(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(adminService.getAllReferees(userPrincipal.getId()));
     }
 
     @GetMapping("/referees/{id}")
-    public ResponseEntity<RefereeDetailResponse> getReferee(@PathVariable Integer id) {
-        return ResponseEntity.ok(adminService.getRefereeDetails(id));
+    public ResponseEntity<RefereeDetailResponse> getReferee(
+        @AuthenticationPrincipal UserPrincipal userPrincipal,
+        @PathVariable Integer id
+    ) {
+        return ResponseEntity.ok(adminService.getRefereeDetails(userPrincipal.getId(), id));
     }
 }
