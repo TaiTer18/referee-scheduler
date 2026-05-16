@@ -43,6 +43,9 @@ public class Game {
     @Column(name = "assigned_referee_id")
     private Integer assignedRefereeId;
 
+    @Column(name = "organization_id", nullable = false)
+    private Integer organizationId;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 

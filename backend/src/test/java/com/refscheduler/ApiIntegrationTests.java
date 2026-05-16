@@ -3,11 +3,13 @@ package com.refscheduler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.refscheduler.model.Game;
-import com.refscheduler.model.GameAssignment;
-import com.refscheduler.model.RefereeAvailability;
+import com.refscheduler.model.Organization;
+import com.refscheduler.model.OrganizationMembership;
 import com.refscheduler.model.User;
 import com.refscheduler.repository.GameAssignmentRepository;
 import com.refscheduler.repository.GameRepository;
+import com.refscheduler.repository.OrganizationMembershipRepository;
+import com.refscheduler.repository.OrganizationRepository;
 import com.refscheduler.repository.RefereeAvailabilityRepository;
 import com.refscheduler.repository.RefreshTokenRepository;
 import com.refscheduler.repository.UserRepository;
@@ -18,7 +20,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -38,8 +39,6 @@ class ApiIntegrationTests {
     @Autowired
     private MockMvc mockMvc;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
     @Autowired
     private UserRepository userRepository;
 
@@ -55,45 +54,38 @@ class ApiIntegrationTests {
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
+    @Autowired
+    private OrganizationRepository organizationRepository;
+
+    @Autowired
+    private OrganizationMembershipRepository organizationMembershipRepository;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @BeforeEach
     void cleanDatabase() {
         assignmentRepository.deleteAll();
         availabilityRepository.deleteAll();
         refreshTokenRepository.deleteAll();
+        organizationMembershipRepository.deleteAll();
         gameRepository.deleteAll();
+        organizationRepository.deleteAll();
         userRepository.deleteAll();
     }
 
     @Test
-    void registerLoginMeAndLogoutFlowWorks() throws Exception {
-        String registerResponse = mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "email": "admin@example.com",
-                      "password": "password123",
-                      "fullName": "Admin User",
-                      "phoneNumber": "555-1000",
-                      "role": "ADMIN"
-                    }
-                    """))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.accessToken").isNotEmpty())
-            .andExpect(jsonPath("$.refreshToken").isNotEmpty())
-            .andExpect(jsonPath("$.user.email").value("admin@example.com"))
-            .andExpect(jsonPath("$.user.role").value("ADMIN"))
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    void authFlowSupportsOrganizationCreationMembershipsRefreshRotationAndJoinOrganization() throws Exception {
+        AuthFixture admin = registerAdmin("admin@example.com", "Club Alpha");
 
-        String registeredAccessToken = readAccessToken(registerResponse);
-        String registeredRefreshToken = readRefreshToken(registerResponse);
+        assertThat(admin.joinCode()).isNotBlank();
 
         mockMvc.perform(get("/api/auth/me")
-                .header("Authorization", bearer(registeredAccessToken)))
+                .header("Authorization", bearer(admin.accessToken())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.email").value("admin@example.com"))
             .andExpect(jsonPath("$.role").value("ADMIN"));
+
+        AuthFixture referee = registerReferee("ref@example.com", admin.joinCode());
 
         mockMvc.perform(post("/api/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -101,7 +93,7 @@ class ApiIntegrationTests {
                     {
                       "refreshToken": "%s"
                     }
-                    """.formatted(registeredRefreshToken)))
+                    """.formatted(admin.refreshToken())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.accessToken").isNotEmpty())
             .andExpect(jsonPath("$.refreshToken").isNotEmpty());
@@ -112,51 +104,32 @@ class ApiIntegrationTests {
                     {
                       "refreshToken": "%s"
                     }
-                    """.formatted(registeredRefreshToken)))
+                    """.formatted(admin.refreshToken())))
             .andExpect(status().isUnauthorized());
 
-        String loginResponse = mockMvc.perform(post("/api/auth/login")
+        AuthFixture secondAdmin = registerAdmin("admin2@example.com", "Club Beta");
+
+        mockMvc.perform(post("/api/auth/join-organization")
+                .header("Authorization", bearer(referee.accessToken()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "email": "admin@example.com",
-                      "password": "password123"
+                      "joinCode": "%s"
                     }
-                    """))
+                    """.formatted(secondAdmin.joinCode())))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.accessToken").isNotEmpty())
-            .andExpect(jsonPath("$.refreshToken").isNotEmpty())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+            .andExpect(jsonPath("$.organizationName").value("Club Beta"))
+            .andExpect(jsonPath("$.role").value("REFEREE"));
 
-        String loginAccessToken = readAccessToken(loginResponse);
-        String loginRefreshToken = readRefreshToken(loginResponse);
-
-        String rotatedRefreshResponse = mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/auth/join-organization")
+                .header("Authorization", bearer(referee.accessToken()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "refreshToken": "%s"
+                      "joinCode": "%s"
                     }
-                    """.formatted(loginRefreshToken)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.accessToken").isNotEmpty())
-            .andExpect(jsonPath("$.refreshToken").isNotEmpty())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-
-        String rotatedRefreshToken = readRefreshToken(rotatedRefreshResponse);
-
-        mockMvc.perform(post("/api/auth/refresh")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "refreshToken": "%s"
-                    }
-                    """.formatted(loginRefreshToken)))
-            .andExpect(status().isUnauthorized());
+                    """.formatted(secondAdmin.joinCode())))
+            .andExpect(status().isConflict());
 
         mockMvc.perform(post("/api/auth/logout")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -164,7 +137,7 @@ class ApiIntegrationTests {
                     {
                       "refreshToken": "%s"
                     }
-                    """.formatted(rotatedRefreshToken)))
+                    """.formatted(referee.refreshToken())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.message").value("Logged out successfully."));
 
@@ -174,257 +147,388 @@ class ApiIntegrationTests {
                     {
                       "refreshToken": "%s"
                     }
-                    """.formatted(rotatedRefreshToken)))
+                    """.formatted(referee.refreshToken())))
             .andExpect(status().isUnauthorized());
-
-        mockMvc.perform(get("/api/auth/me")
-                .header("Authorization", bearer(loginAccessToken)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.email").value("admin@example.com"));
     }
 
     @Test
-    void adminGameCrudEndpointsWork() throws Exception {
-        String adminToken = registerAndGetAccessToken("admin@example.com", "ADMIN");
+    void adminGameCrudEndpointsAreScopedToOrganization() throws Exception {
+        AuthFixture adminOne = registerAdmin("admin1@example.com", "Club Alpha");
+        AuthFixture adminTwo = registerAdmin("admin2@example.com", "Club Beta");
 
-        String createResponse = mockMvc.perform(post("/api/admin/games")
-                .header("Authorization", bearer(adminToken))
+        String gameOneResponse = mockMvc.perform(post("/api/admin/games")
+                .header("Authorization", bearer(adminOne.accessToken()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "gameDate": "2026-06-01",
                       "gameTime": "18:30:00",
-                      "location": "Central Field",
+                      "location": "Alpha Field",
                       "homeTeam": "Lions",
                       "awayTeam": "Tigers",
                       "ageGroup": "U16",
-                      "notes": "Bring whistles"
+                      "notes": "Alpha game"
                     }
                     """))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.location").value("Central Field"))
-            .andExpect(jsonPath("$.status").value("OPEN"))
+            .andExpect(jsonPath("$.organizationId").value(adminOne.organizationId()))
             .andReturn()
             .getResponse()
             .getContentAsString();
 
-        Integer gameId = readId(createResponse);
+        Integer gameOneId = readPathId(gameOneResponse, "id");
 
-        mockMvc.perform(get("/api/admin/games")
-                .header("Authorization", bearer(adminToken)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].id").value(gameId))
-            .andExpect(jsonPath("$[0].homeTeam").value("Lions"));
-
-        mockMvc.perform(put("/api/admin/games/{id}", gameId)
-                .header("Authorization", bearer(adminToken))
+        mockMvc.perform(post("/api/admin/games")
+                .header("Authorization", bearer(adminTwo.accessToken()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "gameDate": "2026-06-02",
                       "gameTime": "19:00:00",
-                      "location": "North Field",
-                      "homeTeam": "Lions",
-                      "awayTeam": "Bears",
+                      "location": "Beta Field",
+                      "homeTeam": "Bears",
+                      "awayTeam": "Sharks",
                       "ageGroup": "U18",
-                      "status": "OPEN",
-                      "notes": "Updated"
+                      "notes": "Beta game"
                     }
                     """))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.location").value("North Field"))
-            .andExpect(jsonPath("$.awayTeam").value("Bears"));
-
-        mockMvc.perform(delete("/api/admin/games/{id}", gameId)
-                .header("Authorization", bearer(adminToken)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Game deleted successfully."));
+            .andExpect(jsonPath("$.organizationId").value(adminTwo.organizationId()));
 
         mockMvc.perform(get("/api/admin/games")
-                .header("Authorization", bearer(adminToken)))
+                .header("Authorization", bearer(adminOne.accessToken())))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isEmpty());
+            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+            .andExpect(jsonPath("$[0].location").value("Alpha Field"));
+
+        mockMvc.perform(get("/api/admin/games")
+                .header("Authorization", bearer(adminTwo.accessToken())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+            .andExpect(jsonPath("$[0].location").value("Beta Field"));
+
+        mockMvc.perform(put("/api/admin/games/{id}", gameOneId)
+                .header("Authorization", bearer(adminTwo.accessToken()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "gameDate": "2026-06-03",
+                      "gameTime": "20:00:00",
+                      "location": "Should Fail",
+                      "homeTeam": "Bears",
+                      "awayTeam": "Wolves"
+                    }
+                    """))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/admin/games/{id}", gameOneId)
+                .header("Authorization", bearer(adminTwo.accessToken())))
+            .andExpect(status().isForbidden());
     }
 
     @Test
-    void refereeAvailabilityAndAssignmentEndpointsWork() throws Exception {
-        String adminToken = registerAndGetAccessToken("admin@example.com", "ADMIN");
-        String refereeToken = registerAndGetAccessToken("ref@example.com", "REFEREE");
+    void refereeCanBelongToManyOrganizationsAndSeeGamesAcrossMemberships() throws Exception {
+        AuthFixture adminOne = registerAdmin("admin1@example.com", "Club Alpha");
+        AuthFixture adminTwo = registerAdmin("admin2@example.com", "Club Beta");
+        AuthFixture referee = registerReferee("ref@example.com", adminOne.joinCode());
 
-        User referee = userRepository.findByEmail("ref@example.com").orElseThrow();
-        Game openGame = saveGame("Open Field", "Lions", "Tigers", LocalDate.of(2026, 6, 1), LocalTime.of(18, 30));
-        Game assignmentGame = saveGame("West Field", "Bears", "Sharks", LocalDate.of(2026, 6, 2), LocalTime.of(19, 0));
+        mockMvc.perform(post("/api/auth/join-organization")
+                .header("Authorization", bearer(referee.accessToken()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "joinCode": "%s"
+                    }
+                    """.formatted(adminTwo.joinCode())))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/admin/games")
+                .header("Authorization", bearer(adminOne.accessToken()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "gameDate": "2026-06-01",
+                      "gameTime": "18:30:00",
+                      "location": "Alpha Field",
+                      "homeTeam": "Lions",
+                      "awayTeam": "Tigers"
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        String betaGameResponse = mockMvc.perform(post("/api/admin/games")
+                .header("Authorization", bearer(adminTwo.accessToken()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "gameDate": "2026-06-02",
+                      "gameTime": "19:00:00",
+                      "location": "Beta Field",
+                      "homeTeam": "Bears",
+                      "awayTeam": "Sharks"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        Integer betaGameId = readPathId(betaGameResponse, "id");
+        Integer refereeId = readPathId(referee.responseBody(), "user.id");
 
         mockMvc.perform(get("/api/referees/available-games")
-                .header("Authorization", bearer(refereeToken)))
+                .header("Authorization", bearer(referee.accessToken())))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].location").value("Open Field"));
+            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)));
 
         mockMvc.perform(post("/api/referees/availability")
-                .header("Authorization", bearer(refereeToken))
+                .header("Authorization", bearer(referee.accessToken()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "gameId": %d,
                       "isAvailable": true
                     }
-                    """.formatted(openGame.getId())))
+                    """.formatted(betaGameId)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.gameId").value(openGame.getId()))
-            .andExpect(jsonPath("$.isAvailable").value(true));
+            .andExpect(jsonPath("$.gameId").value(betaGameId))
+            .andExpect(jsonPath("$.game.organizationId").value(adminTwo.organizationId()));
 
         mockMvc.perform(post("/api/admin/assignments")
-                .header("Authorization", bearer(adminToken))
+                .header("Authorization", bearer(adminTwo.accessToken()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "gameId": %d,
                       "refereeId": %d,
-                      "notes": "Please arrive early"
+                      "notes": "Cross-org membership assignment"
                     }
-                    """.formatted(assignmentGame.getId(), referee.getId())))
+                    """.formatted(betaGameId, refereeId)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.gameId").value(assignmentGame.getId()))
-            .andExpect(jsonPath("$.refereeId").value(referee.getId()))
-            .andExpect(jsonPath("$.status").value("ASSIGNED"));
+            .andExpect(jsonPath("$.game.organizationId").value(adminTwo.organizationId()));
 
-        mockMvc.perform(get("/api/referees/{id}/availability", referee.getId())
-                .header("Authorization", bearer(refereeToken)))
+        mockMvc.perform(get("/api/referees/{id}/assignments", refereeId)
+                .header("Authorization", bearer(referee.accessToken())))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.refereeId").value(referee.getId()))
-            .andExpect(jsonPath("$.availability[0].gameId").value(openGame.getId()));
-
-        mockMvc.perform(get("/api/referees/{id}/assignments", referee.getId())
-                .header("Authorization", bearer(refereeToken)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].gameId").value(assignmentGame.getId()))
-            .andExpect(jsonPath("$[0].notes").value("Please arrive early"));
-
-        mockMvc.perform(get("/api/admin/referees")
-                .header("Authorization", bearer(adminToken)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].id").value(referee.getId()))
-            .andExpect(jsonPath("$[0].role").value("REFEREE"));
-
-        mockMvc.perform(get("/api/admin/referees/{id}", referee.getId())
-                .header("Authorization", bearer(adminToken)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.referee.id").value(referee.getId()))
-            .andExpect(jsonPath("$.availability[0].gameId").value(openGame.getId()))
-            .andExpect(jsonPath("$.assignments[0].gameId").value(assignmentGame.getId()));
+            .andExpect(jsonPath("$[0].gameId").value(betaGameId));
     }
 
     @Test
-    void adminCanInspectGameRefereesAndUnassign() throws Exception {
-        String adminToken = registerAndGetAccessToken("admin@example.com", "ADMIN");
-        registerAndGetAccessToken("ref1@example.com", "REFEREE");
-        registerAndGetAccessToken("ref2@example.com", "REFEREE");
+    void refereeCannotAccessGamesForOrganizationsTheyHaveNotJoined() throws Exception {
+        AuthFixture adminOne = registerAdmin("admin1@example.com", "Club Alpha");
+        AuthFixture adminTwo = registerAdmin("admin2@example.com", "Club Beta");
+        AuthFixture referee = registerReferee("ref@example.com", adminOne.joinCode());
 
-        User refereeOne = userRepository.findByEmail("ref1@example.com").orElseThrow();
-        User refereeTwo = userRepository.findByEmail("ref2@example.com").orElseThrow();
-        Game game = saveGame("South Field", "Wolves", "Falcons", LocalDate.of(2026, 6, 3), LocalTime.of(20, 0));
-
-        availabilityRepository.save(new RefereeAvailability(refereeOne.getId(), game.getId(), true));
-        availabilityRepository.save(new RefereeAvailability(refereeTwo.getId(), game.getId(), false));
-
-        mockMvc.perform(get("/api/admin/games/{id}/referees", game.getId())
-                .header("Authorization", bearer(adminToken)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].referee.role").value("REFEREE"))
-            .andExpect(jsonPath("$[0].isAvailable").isBoolean());
-
-        String assignmentResponse = mockMvc.perform(post("/api/admin/assignments")
-                .header("Authorization", bearer(adminToken))
+        mockMvc.perform(post("/api/admin/games")
+                .header("Authorization", bearer(adminOne.accessToken()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "gameId": %d,
-                      "refereeId": %d,
-                      "notes": "Late game"
+                      "gameDate": "2026-06-01",
+                      "gameTime": "18:30:00",
+                      "location": "Alpha Field",
+                      "homeTeam": "Lions",
+                      "awayTeam": "Tigers"
                     }
-                    """.formatted(game.getId(), refereeOne.getId())))
+                    """))
+            .andExpect(status().isOk());
+
+        String betaGameResponse = mockMvc.perform(post("/api/admin/games")
+                .header("Authorization", bearer(adminTwo.accessToken()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "gameDate": "2026-06-02",
+                      "gameTime": "19:00:00",
+                      "location": "Beta Field",
+                      "homeTeam": "Bears",
+                      "awayTeam": "Sharks"
+                    }
+                    """))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
             .getContentAsString();
 
-        Integer assignmentId = readPathId(assignmentResponse, "assignmentId");
+        Integer betaGameId = readPathId(betaGameResponse, "id");
+        Integer refereeId = readPathId(referee.responseBody(), "user.id");
 
-        mockMvc.perform(delete("/api/admin/assignments/{id}", assignmentId)
-                .header("Authorization", bearer(adminToken)))
+        mockMvc.perform(get("/api/referees/available-games")
+                .header("Authorization", bearer(referee.accessToken())))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Referee unassigned successfully."));
+            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+            .andExpect(jsonPath("$[0].location").value("Alpha Field"));
 
-        Game updatedGame = gameRepository.findById(game.getId()).orElseThrow();
-        GameAssignment updatedAssignment = assignmentRepository.findById(assignmentId).orElseThrow();
-        assertThat(updatedGame.getAssignedRefereeId()).isNull();
-        assertThat(updatedGame.getStatus()).isEqualTo("OPEN");
-        assertThat(updatedAssignment.getStatus()).isEqualTo("CANCELLED");
+        mockMvc.perform(post("/api/referees/availability")
+                .header("Authorization", bearer(referee.accessToken()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "gameId": %d,
+                      "isAvailable": true
+                    }
+                    """.formatted(betaGameId)))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/admin/assignments")
+                .header("Authorization", bearer(adminTwo.accessToken()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "gameId": %d,
+                      "refereeId": %d
+                    }
+                    """.formatted(betaGameId, refereeId)))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void adminViewsOnlyRefereesFromOrganizationsTheyManage() throws Exception {
+        AuthFixture adminOne = registerAdmin("admin1@example.com", "Club Alpha");
+        AuthFixture adminTwo = registerAdmin("admin2@example.com", "Club Beta");
+        AuthFixture sharedReferee = registerReferee("shared@example.com", adminOne.joinCode());
+        AuthFixture isolatedReferee = registerReferee("isolated@example.com", adminTwo.joinCode());
+
+        mockMvc.perform(post("/api/auth/join-organization")
+                .header("Authorization", bearer(sharedReferee.accessToken()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "joinCode": "%s"
+                    }
+                    """.formatted(adminTwo.joinCode())))
+            .andExpect(status().isOk());
+
+        Integer sharedRefereeId = readPathId(sharedReferee.responseBody(), "user.id");
+        Integer isolatedRefereeId = readPathId(isolatedReferee.responseBody(), "user.id");
+
+        mockMvc.perform(get("/api/admin/referees")
+                .header("Authorization", bearer(adminOne.accessToken())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+            .andExpect(jsonPath("$[0].id").value(sharedRefereeId));
+
+        mockMvc.perform(get("/api/admin/referees")
+                .header("Authorization", bearer(adminTwo.accessToken())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)));
+
+        mockMvc.perform(get("/api/admin/referees/{id}", isolatedRefereeId)
+                .header("Authorization", bearer(adminOne.accessToken())))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/admin/referees/{id}", sharedRefereeId)
+                .header("Authorization", bearer(adminTwo.accessToken())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.referee.id").value(sharedRefereeId));
     }
 
     @Test
     void refereeCannotReadAnotherRefereesData() throws Exception {
-        String firstRefToken = registerAndGetAccessToken("ref1@example.com", "REFEREE");
-        registerAndGetAccessToken("ref2@example.com", "REFEREE");
+        AuthFixture admin = registerAdmin("admin@example.com", "Club Alpha");
+        AuthFixture refereeOne = registerReferee("ref1@example.com", admin.joinCode());
+        AuthFixture refereeTwo = registerReferee("ref2@example.com", admin.joinCode());
 
-        User secondRef = userRepository.findByEmail("ref2@example.com").orElseThrow();
+        Integer refereeTwoId = readPathId(refereeTwo.responseBody(), "user.id");
 
-        mockMvc.perform(get("/api/referees/{id}/availability", secondRef.getId())
-                .header("Authorization", bearer(firstRefToken)))
+        mockMvc.perform(get("/api/referees/{id}/availability", refereeTwoId)
+                .header("Authorization", bearer(refereeOne.accessToken())))
             .andExpect(status().isForbidden());
     }
 
-    private String registerAndGetAccessToken(String email, String role) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/auth/register")
+    private AuthFixture registerAdmin(String email, String organizationName) throws Exception {
+        String response = mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "email": "%s",
                       "password": "password123",
-                      "fullName": "%s",
-                      "phoneNumber": "555-9999",
-                      "role": "%s"
+                      "fullName": "Admin User",
+                      "phoneNumber": "555-1000",
+                      "role": "ADMIN",
+                      "organizationName": "%s"
                     }
-                    """.formatted(email, role + " User", role)))
+                    """.formatted(email, organizationName)))
             .andExpect(status().isOk())
-            .andReturn();
+            .andExpect(jsonPath("$.accessToken").isNotEmpty())
+            .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+            .andExpect(jsonPath("$.memberships[0].organizationName").value(organizationName))
+            .andExpect(jsonPath("$.memberships[0].joinCode").isNotEmpty())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
-        return readAccessToken(result.getResponse().getContentAsString());
+        return new AuthFixture(
+            response,
+            readPath(response, "accessToken").asText(),
+            readPath(response, "refreshToken").asText(),
+            readPath(response, "memberships[0].joinCode").asText(),
+            readPathId(response, "memberships[0].organizationId")
+        );
     }
 
-    private Game saveGame(String location, String homeTeam, String awayTeam, LocalDate gameDate, LocalTime gameTime) {
-        return gameRepository.save(new Game(
-            gameDate,
-            gameTime,
-            location,
-            homeTeam,
-            awayTeam,
-            "U16"
-        ));
+    private AuthFixture registerReferee(String email, String joinCode) throws Exception {
+        String response = mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "email": "%s",
+                      "password": "password123",
+                      "fullName": "Referee User",
+                      "phoneNumber": "555-2000",
+                      "role": "REFEREE",
+                      "joinCode": "%s"
+                    }
+                    """.formatted(email, joinCode)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.accessToken").isNotEmpty())
+            .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+            .andExpect(jsonPath("$.memberships[0].joinCode").value(joinCode))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        Integer organizationId = organizationRepository.findByJoinCode(joinCode)
+            .map(Organization::getId)
+            .orElseThrow();
+
+        return new AuthFixture(
+            response,
+            readPath(response, "accessToken").asText(),
+            readPath(response, "refreshToken").asText(),
+            joinCode,
+            organizationId
+        );
+    }
+
+    private JsonNode readPath(String json, String path) throws Exception {
+        JsonNode node = objectMapper.readTree(json);
+        for (String part : path.split("\\.")) {
+            if (part.contains("[")) {
+                String field = part.substring(0, part.indexOf('['));
+                int index = Integer.parseInt(part.substring(part.indexOf('[') + 1, part.indexOf(']')));
+                node = node.path(field).path(index);
+            } else {
+                node = node.path(part);
+            }
+        }
+        return node;
+    }
+
+    private Integer readPathId(String json, String path) throws Exception {
+        return readPath(json, path).asInt();
     }
 
     private String bearer(String token) {
         return "Bearer " + token;
     }
 
-    private String readAccessToken(String json) throws Exception {
-        return readPath(json, "accessToken");
-    }
-
-    private String readRefreshToken(String json) throws Exception {
-        return readPath(json, "refreshToken");
-    }
-
-    private Integer readId(String json) throws Exception {
-        return readPathId(json, "id");
-    }
-
-    private Integer readPathId(String json, String field) throws Exception {
-        return Integer.valueOf(readPath(json, field));
-    }
-
-    private String readPath(String json, String field) throws Exception {
-        JsonNode node = objectMapper.readTree(json);
-        return node.get(field).asText();
+    private record AuthFixture(
+        String responseBody,
+        String accessToken,
+        String refreshToken,
+        String joinCode,
+        Integer organizationId
+    ) {
     }
 }

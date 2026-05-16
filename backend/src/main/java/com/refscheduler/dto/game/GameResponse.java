@@ -16,6 +16,7 @@ public record GameResponse(
     String ageGroup,
     String status,
     Integer assignedRefereeId,
+    Integer organizationId,
     String notes,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
@@ -31,6 +32,7 @@ public record GameResponse(
             game.getAgeGroup(),
             game.getStatus(),
             game.getAssignedRefereeId(),
+            game.getOrganizationId(),
             game.getNotes(),
             game.getCreatedAt(),
             game.getUpdatedAt()

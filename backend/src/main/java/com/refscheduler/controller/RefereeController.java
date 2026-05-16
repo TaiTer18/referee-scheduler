@@ -31,8 +31,8 @@ public class RefereeController {
     }
 
     @GetMapping("/available-games")
-    public ResponseEntity<List<GameResponse>> getAvailableGames() {
-        return ResponseEntity.ok(refereeService.getAvailableGames());
+    public ResponseEntity<List<GameResponse>> getAvailableGames(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(refereeService.getAvailableGames(userPrincipal.getId()));
     }
 
     @PostMapping("/availability")
@@ -47,15 +47,21 @@ public class RefereeController {
     }
 
     @GetMapping("/{id}/availability")
-    public ResponseEntity<AvailabilityStatusResponse> getAvailability(@PathVariable Integer id) {
+    public ResponseEntity<AvailabilityStatusResponse> getAvailability(
+        @AuthenticationPrincipal UserPrincipal userPrincipal,
+        @PathVariable Integer id
+    ) {
         ensureSelfOrAdmin(id);
-        return ResponseEntity.ok(refereeService.getAvailability(id));
+        return ResponseEntity.ok(refereeService.getAvailability(userPrincipal.getId(), userPrincipal.getRole(), id));
     }
 
     @GetMapping("/{id}/assignments")
-    public ResponseEntity<List<AssignmentResponse>> getAssignments(@PathVariable Integer id) {
+    public ResponseEntity<List<AssignmentResponse>> getAssignments(
+        @AuthenticationPrincipal UserPrincipal userPrincipal,
+        @PathVariable Integer id
+    ) {
         ensureSelfOrAdmin(id);
-        return ResponseEntity.ok(refereeService.getAssignments(id));
+        return ResponseEntity.ok(refereeService.getAssignments(userPrincipal.getId(), userPrincipal.getRole(), id));
     }
 
     private void ensureSelfOrAdmin(Integer refereeId) {

@@ -1,15 +1,35 @@
 -- Referee Scheduler Database Schema
 
--- Users table (Referees and Admins)
+-- Organizations table
+CREATE TABLE organizations (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    join_code VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Users table (global accounts)
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(255) NOT NULL,
     phone_number VARCHAR(20),
-    role VARCHAR(20) NOT NULL, -- 'REFEREE' or 'ADMIN'
+    role VARCHAR(20) NOT NULL, -- global role, currently 'REFEREE' or 'ADMIN'
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Organization memberships table
+CREATE TABLE organization_memberships (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    organization_id INTEGER NOT NULL,
+    role VARCHAR(20) NOT NULL, -- role within the organization
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, organization_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
 );
 
 -- Games table
@@ -23,10 +43,12 @@ CREATE TABLE games (
     age_group VARCHAR(50),
     status VARCHAR(20) DEFAULT 'OPEN', -- 'OPEN', 'ASSIGNED', 'COMPLETED', 'CANCELLED'
     assigned_referee_id INTEGER,
+    organization_id INTEGER NOT NULL,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (assigned_referee_id) REFERENCES users(id)
+    FOREIGN KEY (assigned_referee_id) REFERENCES users(id),
+    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
 );
 
 -- Referee Availability table (Many-to-Many)
@@ -69,6 +91,9 @@ CREATE TABLE refresh_tokens (
 
 -- Create indexes for faster queries
 CREATE INDEX idx_games_assigned_referee ON games(assigned_referee_id);
+CREATE INDEX idx_games_organization ON games(organization_id);
+CREATE INDEX idx_organization_memberships_user ON organization_memberships(user_id);
+CREATE INDEX idx_organization_memberships_organization ON organization_memberships(organization_id);
 CREATE INDEX idx_referee_availability_referee ON referee_availability(referee_id);
 CREATE INDEX idx_referee_availability_game ON referee_availability(game_id);
 CREATE INDEX idx_game_assignments_game ON game_assignments(game_id);
