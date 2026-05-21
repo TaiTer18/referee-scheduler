@@ -58,7 +58,6 @@ export function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [joinCodeStatus, setJoinCodeStatus] = useState<JoinCodeStatus>("idle");
-    const [joinCodeOrganizationName, setJoinCodeOrganizationName] = useState<string | null>(null);
     const {
         register,
         handleSubmit,
@@ -87,7 +86,6 @@ export function RegisterPage() {
             resetField("joinCode");
             clearErrors("joinCode");
             setJoinCodeStatus("idle");
-            setJoinCodeOrganizationName(null);
         }
 
         if (selectedRole === "REFEREE") {
@@ -99,7 +97,6 @@ export function RegisterPage() {
     useEffect(() => {
         if (selectedRole !== "REFEREE") {
             setJoinCodeStatus("idle");
-            setJoinCodeOrganizationName(null);
             return;
         }
 
@@ -107,7 +104,6 @@ export function RegisterPage() {
 
         if (normalizedJoinCode.length !== JOIN_CODE_LENGTH) {
             setJoinCodeStatus("idle");
-            setJoinCodeOrganizationName(null);
             return;
         }
 
@@ -123,11 +119,9 @@ export function RegisterPage() {
                 }
 
                 setJoinCodeStatus(result.valid ? "valid" : "invalid");
-                setJoinCodeOrganizationName(result.organizationName);
             } catch {
                 if (!cancelled) {
                     setJoinCodeStatus("invalid");
-                    setJoinCodeOrganizationName(null);
                 }
             }
         }, 350);

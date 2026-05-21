@@ -1,6 +1,7 @@
 # Architecture
 
 ## Overview
+
 The backend follows a typical Spring Boot layered structure:
 
 - Controllers expose HTTP endpoints
@@ -15,6 +16,7 @@ This separation makes the code easier to test, explain, and extend.
 ## Package Layout
 
 ### Controllers
+
 - `AdminController`
 - `AuthController`
 - `RefereeController`
@@ -22,6 +24,7 @@ This separation makes the code easier to test, explain, and extend.
 Controllers are the HTTP layer. They map routes, accept request bodies, and delegate work to services.
 
 ### Services
+
 - `AdminService`
 - `AuthService`
 - `RefereeService`
@@ -30,6 +33,7 @@ Controllers are the HTTP layer. They map routes, accept request bodies, and dele
 Services contain the application rules. This is where the scheduling behavior and authentication flow live.
 
 ### Repositories
+
 - `UserRepository`
 - `OrganizationRepository`
 - `OrganizationMembershipRepository`
@@ -41,6 +45,7 @@ Services contain the application rules. This is where the scheduling behavior an
 Repositories are Spring Data JPA interfaces. They provide CRUD and query methods for database access.
 
 ### Models
+
 - `User`
 - `Organization`
 - `OrganizationMembership`
@@ -52,9 +57,11 @@ Repositories are Spring Data JPA interfaces. They provide CRUD and query methods
 These are the persistence entities mapped to database tables.
 
 ### DTOs
+
 DTOs are used so the API contract is separate from the database entities.
 
 Examples:
+
 - `RegisterRequest`
 - `LoginRequest`
 - `AuthResponse`
@@ -63,6 +70,7 @@ Examples:
 - `AssignmentResponse`
 
 ### Security
+
 - `SecurityConfig`
 - `JwtAuthenticationFilter`
 - `JwtService`
@@ -74,6 +82,7 @@ These classes implement authentication and authorization.
 ## Request Flow
 
 ### Example: authenticated request
+
 1. Client sends `Authorization: Bearer <access token>`
 2. `JwtAuthenticationFilter` reads and validates the token
 3. The filter loads the user and sets authentication in the Spring Security context
@@ -85,25 +94,30 @@ These classes implement authentication and authorization.
 ## Authentication Design
 
 ### Access token
+
 - JWT
 - Short-lived
 - Used on protected API calls
 
 ### Refresh token
+
 - Random token string
 - Stored hashed in the database
 - Rotated on refresh
 - Revoked on logout
 
 ### Why this design
+
 This is more production-ready than using one long-lived JWT or an in-memory blocklist for logout. It limits damage if an access token is stolen and allows refresh tokens to be revoked safely.
 
 ## Organization Model
 
 ### User
+
 `User` is the global account identity.
 
 It stores:
+
 - email
 - password hash
 - name
@@ -111,17 +125,21 @@ It stores:
 - global role
 
 ### Organization
+
 `Organization` represents a club, league, or scheduling group.
 
 It stores:
+
 - name
 - join code
 - created timestamp
 
 ### OrganizationMembership
+
 `OrganizationMembership` connects a user to an organization.
 
 It stores:
+
 - `userId`
 - `organizationId`
 - role within that organization
@@ -129,9 +147,11 @@ It stores:
 This allows a referee to belong to many organizations without duplicating user accounts.
 
 ### Game ownership
+
 Each `Game` belongs to one organization through `organizationId`.
 
 That is important because:
+
 - admins should only manage games for organizations they belong to
 - referees should only see games for organizations they belong to
 - assignments and availability should stay inside organization boundaries
@@ -139,7 +159,9 @@ That is important because:
 ## Role Model
 
 ### ADMIN
+
 Can:
+
 - create, update, and delete games
 - view referees
 - assign and unassign referees
@@ -147,7 +169,9 @@ Can:
 Admin actions are allowed only for organizations where the user has an admin membership.
 
 ### REFEREE
+
 Can:
+
 - view available games
 - submit availability
 - view their own availability and assignments
@@ -155,13 +179,16 @@ Can:
 Referees can belong to multiple organizations, so their available games are the union of games from organizations where they have referee memberships.
 
 The backend also enforces:
+
 - self-or-admin checks for referee detail routes
 - shared-organization checks for admin access to a referee’s data
 
 ## Testing Strategy
+
 The project currently uses integration tests with `MockMvc`.
 
 This means tests cover:
+
 - controllers
 - security
 - services
