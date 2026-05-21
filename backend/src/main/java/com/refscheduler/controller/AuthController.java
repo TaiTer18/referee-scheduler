@@ -7,6 +7,7 @@ import com.refscheduler.dto.auth.RefreshResponse;
 import com.refscheduler.dto.auth.RefreshTokenRequest;
 import com.refscheduler.dto.auth.RegisterRequest;
 import com.refscheduler.dto.common.ApiMessageResponse;
+import com.refscheduler.dto.organization.JoinCodeValidationResponse;
 import com.refscheduler.dto.organization.OrganizationMembershipResponse;
 import com.refscheduler.security.UserPrincipal;
 import com.refscheduler.dto.user.UserResponse;
@@ -15,6 +16,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,5 +64,10 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<UserResponse> me() {
         return ResponseEntity.ok(authService.me());
+    }
+
+    @GetMapping("/join-code/{joinCode}")
+    public ResponseEntity<JoinCodeValidationResponse> validateJoinCode(@PathVariable String joinCode) {
+        return ResponseEntity.ok(authService.validateJoinCode(joinCode));
     }
 }

@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface OrganizationRepository extends JpaRepository<Organization, Integer> {
     boolean existsByJoinCode(String joinCode);
     Optional<Organization> findByJoinCode(String joinCode);
+    Optional<Organization> findByJoinCodeAndActiveTrue(String joinCode);
 }

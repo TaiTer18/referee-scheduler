@@ -6,6 +6,7 @@ import com.refscheduler.dto.auth.LoginRequest;
 import com.refscheduler.dto.auth.RefreshResponse;
 import com.refscheduler.dto.auth.RefreshTokenRequest;
 import com.refscheduler.dto.auth.RegisterRequest;
+import com.refscheduler.dto.organization.JoinCodeValidationResponse;
 import com.refscheduler.dto.organization.OrganizationMembershipResponse;
 import com.refscheduler.dto.user.UserResponse;
 import com.refscheduler.exception.BadRequestException;
@@ -107,8 +108,8 @@ public class AuthService {
     public OrganizationMembershipResponse joinOrganization(Integer userId, JoinOrganizationRequest request) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException("User not found."));
-        Organization organization = organizationRepository.findByJoinCode(request.joinCode().trim().toUpperCase(Locale.ROOT))
-            .orElseThrow(() -> new NotFoundException("Organization not found for that join code."));
+        Organization organization = organizationRepository.findByJoinCodeAndActiveTrue(request.joinCode().trim().toUpperCase(Locale.ROOT))
+            .orElseThrow(() -> new NotFoundException("Active organization not found for that join code."));
 
         if (organizationMembershipRepository.existsByUserIdAndOrganizationId(user.getId(), organization.getId())) {
             throw new ConflictException("User already belongs to this organization.");
@@ -146,6 +147,16 @@ public class AuthService {
         return UserResponse.from(principal.getUser());
     }
 
+    public JoinCodeValidationResponse validateJoinCode(String joinCode) {
+        if (joinCode == null || joinCode.isBlank()) {
+            return new JoinCodeValidationResponse(false, null, null);
+        }
+
+        return organizationRepository.findByJoinCodeAndActiveTrue(joinCode.trim().toUpperCase(Locale.ROOT))
+            .map(organization -> new JoinCodeValidationResponse(true, organization.getId(), organization.getName()))
+            .orElseGet(() -> new JoinCodeValidationResponse(false, null, null));
+    }
+
     private void createInitialMembership(User user, RegisterRequest request, String normalizedRole) {
         if ("ADMIN".equals(normalizedRole)) {
             if (request.organizationName() == null || request.organizationName().isBlank()) {
@@ -161,8 +172,8 @@ public class AuthService {
         if (request.joinCode() == null || request.joinCode().isBlank()) {
             throw new BadRequestException("joinCode is required for referee registration.");
         }
-        Organization organization = organizationRepository.findByJoinCode(request.joinCode().trim().toUpperCase(Locale.ROOT))
-            .orElseThrow(() -> new NotFoundException("Organization not found for that join code."));
+        Organization organization = organizationRepository.findByJoinCodeAndActiveTrue(request.joinCode().trim().toUpperCase(Locale.ROOT))
+            .orElseThrow(() -> new NotFoundException("Active organization not found for that join code."));
         organizationMembershipRepository.save(new OrganizationMembership(user.getId(), organization.getId(), "REFEREE"));
     }
 
