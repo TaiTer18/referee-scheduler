@@ -30,6 +30,9 @@ public class Organization {
     @Column(name = "join_code", nullable = false, unique = true)
     private String joinCode;
 
+    @Column(nullable = false)
+    private boolean active = true;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -79,6 +79,18 @@ class ApiIntegrationTests {
 
         assertThat(admin.joinCode()).isNotBlank();
 
+        mockMvc.perform(get("/api/auth/join-code/{joinCode}", admin.joinCode().toLowerCase()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.valid").value(true))
+            .andExpect(jsonPath("$.organizationId").value(admin.organizationId()))
+            .andExpect(jsonPath("$.organizationName").value("Club Alpha"));
+
+        mockMvc.perform(get("/api/auth/join-code/{joinCode}", "BADCODE1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.valid").value(false))
+            .andExpect(jsonPath("$.organizationId").doesNotExist())
+            .andExpect(jsonPath("$.organizationName").doesNotExist());
+
         mockMvc.perform(get("/api/auth/me")
                 .header("Authorization", bearer(admin.accessToken())))
             .andExpect(status().isOk())
@@ -149,6 +161,34 @@ class ApiIntegrationTests {
                     }
                     """.formatted(referee.refreshToken())))
             .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void joinCodeValidationOnlyReturnsActiveOrganizations() throws Exception {
+        AuthFixture admin = registerAdmin("admin@example.com", "Club Alpha");
+        Organization organization = organizationRepository.findByJoinCode(admin.joinCode()).orElseThrow();
+        organization.setActive(false);
+        organizationRepository.save(organization);
+
+        mockMvc.perform(get("/api/auth/join-code/{joinCode}", admin.joinCode()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.valid").value(false))
+            .andExpect(jsonPath("$.organizationId").doesNotExist())
+            .andExpect(jsonPath("$.organizationName").doesNotExist());
+
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "email": "ref@example.com",
+                      "password": "password123",
+                      "fullName": "Referee User",
+                      "phoneNumber": "555-2000",
+                      "role": "REFEREE",
+                      "joinCode": "%s"
+                    }
+                    """.formatted(admin.joinCode())))
+            .andExpect(status().isNotFound());
     }
 
     @Test
