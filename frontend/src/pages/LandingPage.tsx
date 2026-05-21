@@ -1,3 +1,4 @@
+import { CalendarDays, Users, Waypoints } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export function LandingPage() {
@@ -56,23 +57,7 @@ export function LandingPage() {
                         <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-3">
                             <div className="flex flex-col items-center space-y-4 text-center">
                                 <div className="p-4 bg-slate-50 rounded-full shadow-sm">
-                                    <svg
-                                        className="h-6 w-6 text-blue-600"
-                                        fill="none"
-                                        height="24"
-                                        stroke="currentColor"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        viewBox="0 0 24 24"
-                                        width="24"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                        <circle cx="9" cy="7" r="4" />
-                                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                                    </svg>
+                                    <Users className="h-6 w-6 text-blue-600" aria-hidden="true" />
                                 </div>
                                 <h2 className="text-xl font-bold">
                                     For Admins: Effortless scheduling
@@ -84,23 +69,10 @@ export function LandingPage() {
                             </div>
                             <div className="flex flex-col items-center space-y-4 text-center">
                                 <div className="p-4 bg-slate-50 rounded-full shadow-sm">
-                                    <svg
+                                    <CalendarDays
                                         className="h-6 w-6 text-blue-600"
-                                        fill="none"
-                                        height="24"
-                                        stroke="currentColor"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        viewBox="0 0 24 24"
-                                        width="24"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <rect height="18" rx="2" ry="2" width="18" x="3" y="4" />
-                                        <line x1="16" x2="16" y1="2" y2="6" />
-                                        <line x1="8" x2="8" y1="2" y2="6" />
-                                        <line x1="3" x2="21" y1="10" y2="10" />
-                                    </svg>
+                                        aria-hidden="true"
+                                    />
                                 </div>
                                 <h2 className="text-xl font-bold">
                                     For Referees: Manage your time
@@ -112,20 +84,10 @@ export function LandingPage() {
                             </div>
                             <div className="flex flex-col items-center space-y-4 text-center">
                                 <div className="p-4 bg-slate-50 rounded-full shadow-sm">
-                                    <svg
+                                    <Waypoints
                                         className="h-6 w-6 text-blue-600"
-                                        fill="none"
-                                        height="24"
-                                        stroke="currentColor"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        viewBox="0 0 24 24"
-                                        width="24"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
-                                    </svg>
+                                        aria-hidden="true"
+                                    />
                                 </div>
                                 <h2 className="text-xl font-bold">Seamless Integration</h2>
                                 <p className="text-slate-500">
