@@ -192,6 +192,26 @@ class ApiIntegrationTests {
     }
 
     @Test
+    void adminRegistrationRequiresUniqueOrganizationNames() throws Exception {
+        registerAdmin("admin1@example.com", "Club Alpha");
+
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "email": "admin2@example.com",
+                      "password": "password123",
+                      "fullName": "Admin User",
+                      "phoneNumber": "555-1000",
+                      "role": "ADMIN",
+                      "organizationName": "club alpha"
+                    }
+                    """))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value("An organization with that name already exists."));
+    }
+
+    @Test
     void adminGameCrudEndpointsAreScopedToOrganization() throws Exception {
         AuthFixture adminOne = registerAdmin("admin1@example.com", "Club Alpha");
         AuthFixture adminTwo = registerAdmin("admin2@example.com", "Club Beta");

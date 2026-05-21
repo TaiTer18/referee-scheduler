@@ -5,6 +5,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { registerUser, validateJoinCode } from "../api/auth";
 import { useAuthStore } from "../store/auth-store";
+import { Check } from "lucide-react";
 
 const JOIN_CODE_LENGTH = 8;
 
@@ -62,6 +63,8 @@ export function RegisterPage() {
         register,
         handleSubmit,
         watch,
+        resetField,
+        clearErrors,
         formState: { errors, isSubmitting },
     } = useForm<RegisterFormValues>({
         resolver: zodResolver(registerSchema),
@@ -78,6 +81,20 @@ export function RegisterPage() {
 
     const selectedRole = watch("role");
     const joinCodeValue = watch("joinCode");
+
+    useEffect(() => {
+        if (selectedRole === "ADMIN") {
+            resetField("joinCode");
+            clearErrors("joinCode");
+            setJoinCodeStatus("idle");
+            setJoinCodeOrganizationName(null);
+        }
+
+        if (selectedRole === "REFEREE") {
+            resetField("organizationName");
+            clearErrors("organizationName");
+        }
+    }, [selectedRole, resetField, clearErrors]);
 
     useEffect(() => {
         if (selectedRole !== "REFEREE") {
@@ -345,25 +362,26 @@ export function RegisterPage() {
                                 >
                                     Join code
                                 </label>
-                                <input
-                                    id="joinCode"
-                                    className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 uppercase tracking-wide text-slate-950 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                                    placeholder="ABC12345"
-                                    autoCapitalize="characters"
-                                    maxLength={JOIN_CODE_LENGTH}
-                                    {...register("joinCode")}
-                                />
+                                <div className="relative mt-2">
+                                    <input
+                                        id="joinCode"
+                                        className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 uppercase tracking-wide text-slate-950 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                                        placeholder="ABC12345"
+                                        autoCapitalize="characters"
+                                        maxLength={JOIN_CODE_LENGTH}
+                                        {...register("joinCode")}
+                                    />
+                                    {joinCodeStatus === "valid" ? (
+                                        <Check className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600" />
+                                    ) : null}
+                                </div>
+
                                 <p className="mt-2 text-sm text-slate-500">
                                     Don&apos;t have a join code? Ask your assignor.
                                 </p>
                                 {joinCodeStatus === "checking" ? (
                                     <p className="mt-1 text-sm text-blue-600">
                                         Checking join code...
-                                    </p>
-                                ) : null}
-                                {joinCodeStatus === "valid" ? (
-                                    <p className="mt-1 text-sm text-emerald-700">
-                                        Connected to {joinCodeOrganizationName}.
                                     </p>
                                 ) : null}
                                 {joinCodeStatus === "invalid" ? (

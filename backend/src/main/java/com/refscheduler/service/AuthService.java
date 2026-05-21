@@ -162,8 +162,14 @@ public class AuthService {
             if (request.organizationName() == null || request.organizationName().isBlank()) {
                 throw new BadRequestException("organizationName is required for admin registration.");
             }
+
+            String organizationName = request.organizationName().trim();
+            if (organizationRepository.existsByNameIgnoreCase(organizationName)) {
+                throw new ConflictException("An organization with that name already exists.");
+            }
+
             Organization organization = organizationRepository.save(
-                new Organization(request.organizationName().trim(), generateJoinCode())
+                new Organization(organizationName, generateJoinCode())
             );
             organizationMembershipRepository.save(new OrganizationMembership(user.getId(), organization.getId(), "ADMIN"));
             return;
